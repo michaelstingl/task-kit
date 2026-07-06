@@ -8,7 +8,7 @@
 //
 // Usage: bun watch.ts [kitsDir]   (no arg: tries _work/kits, then kits, then .)
 import { readdirSync, existsSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 
 const REF = /\b([A-Za-z0-9][\w.-]+\/[A-Za-z0-9][\w.-]+)#(\d+)\b/g;
 const URL = /github\.com\/([A-Za-z0-9][\w.-]+)\/([A-Za-z0-9][\w.-]+)\/(?:issues|pull)\/(\d+)/g;
@@ -78,5 +78,15 @@ if (import.meta.main) {
     }
   }
   if (!kitsWithRefs) console.log("no kits reference any GitHub issues/PRs.");
-  console.log(`\n${kitsWithRefs} kit(s) with refs · ${terminal} merged/closed (●) · ${changesRequested} changes-requested (⚠) · ${approved} approved (✓) · ${moved} moved (▲)`);
+  // Retired kits in a sibling kit-archive are not scanned here — surface the count so their
+  // refs (e.g. a merged PR) are not silently out of view (count-gated; skipped for an explicit dir).
+  let archiveNote = "";
+  if (basename(kitsDir) !== "kit-archive") {
+    const archiveDir = join(kitsDir, "..", "kit-archive");
+    if (existsSync(archiveDir) && statSync(archiveDir).isDirectory()) {
+      const n = readdirSync(archiveDir).filter((d) => existsSync(join(archiveDir, d, "SCOPE.md"))).length;
+      if (n) archiveNote = ` · ${n} archived not scanned (bun watch.ts ${archiveDir})`;
+    }
+  }
+  console.log(`\n${kitsWithRefs} kit(s) with refs · ${terminal} merged/closed (●) · ${changesRequested} changes-requested (⚠) · ${approved} approved (✓) · ${moved} moved (▲)${archiveNote}`);
 }
