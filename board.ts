@@ -15,9 +15,9 @@
 // status=done or status=wontfix.
 //
 // Usage:
-//   bun board.ts [kitsDir] [--todos]
+//   bun board.ts [kitsDir] [--brief]
 //   - no kitsDir: tries _work/kits, then kits, then . (relative to cwd)
-//   - --todos: after the table, list every open marker grouped by kit (priority-sorted)
+//   - open markers (grouped by kit, priority-sorted) are listed by default; --brief prints the table only
 import { readdirSync, existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -28,7 +28,7 @@ const SCHEMA_MM = String(schema.version ?? "").split(".").slice(0, 2).join(".");
 
 // ---- args ----
 const argv = process.argv.slice(2);
-const showTodos = argv.includes("--todos");
+const showTodos = !argv.includes("--brief") && !argv.includes("--no-todos"); // todos shown by default; --brief for table only
 const showAll = argv.includes("--all"); // include terminal-status kits (merged/done/closed)
 const argDir = argv.find((a) => !a.startsWith("--"));
 const candidates = argDir ? [argDir] : ["_work/kits", "kits", "."];
@@ -169,7 +169,7 @@ const bad = shown.filter((r) => r.errs.length).length;
 const openTotal = shown.reduce((n, r) => n + r.markers.filter(isOpen).length, 0);
 const hiddenNote = hiddenCount ? `, ${hiddenCount} done/closed hidden (--all)` : "";
 console.log(`\n${shown.length} kit(s) in ${kitsDir}, ${openTotal} open marker(s)${bad ? `, ${bad} with warnings` : ""}${hiddenNote}.`);
-console.log(`OPEN flags: T=TODO F=FIXME D=DECISION Q=QUESTION` + (showTodos ? "" : "  ·  --todos to list them"));
+console.log(`OPEN flags: T=TODO F=FIXME D=DECISION Q=QUESTION` + (showTodos ? "  ·  --brief for table only" : ""));
 console.log(`kit convention v${schema.version ?? "?"}  ·  board.ts (task-kit)`);
 
 // ---- optional: list open markers grouped by kit, priority-sorted ----

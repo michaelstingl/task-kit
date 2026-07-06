@@ -27,8 +27,8 @@ Experimental; the conventions will change. The canonical version lives once in `
 `board.ts` renders a read-only status board over `kits/*/SCOPE.md` and aggregates the structured TODO markers. **Requires [bun](https://bun.sh).**
 
 ```sh
-bun board.ts            # auto-finds _work/kits, then kits, then .
-bun board.ts --todos    # also list open markers, priority-sorted
+bun board.ts            # table + open markers (grouped by kit, priority-sorted)
+bun board.ts --brief    # table only (suppress the marker listing)
 ```
 
 It reads the status order and field rules from `kit.schema.json` (one source) and warns on drift: status off-enum, `kit` slug ≠ folder name, `kit_version` skew (a kit built under an older convention), malformed dates. It is an **optional snapshot** — the markers and per-kit `## Changelog` inside each `SCOPE.md` remain the source of truth. Run `bun test` to exercise `board.ts` and `new-kit.ts`.

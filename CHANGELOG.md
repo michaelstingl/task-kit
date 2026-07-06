@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com); versioning follows SemVe
 README "Versioning" section). The canonical version number lives only in `kit.schema.json`
 (`version`); this file is the only place release notes live.
 
+## 0.6.3
+
+### Changed
+- `board.ts` now lists open markers (grouped by kit, priority-sorted) **by default**; pass `--brief` (or `--no-todos`) for the table-only view. The per-kit markers are the actionable detail, so the default view surfaces them — especially useful as a resume/handoff entry point after a context reset. `--todos` still works (now a no-op) for backward compatibility. Convention/schema unchanged: the `kit_version` compatibility check reads MAJOR.MINOR only, so all `0.6` kits stay valid.
+
 ## 0.6.2
 
 ### Added
