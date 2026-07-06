@@ -81,6 +81,16 @@ test("board hides terminal status by default, shows with --all", () => {
   expect(run(board, [kits, "--all"], dir).out).toContain("fin");
 });
 
+test("board surfaces a sibling kit-archive count so agents can find retired kits", () => {
+  writeKit(kits, "active1", OK_FM().replace("%KIT%", "active1"));
+  const archive = join(dir, "kit-archive"); // sibling of kits/
+  writeKit(archive, "old1", `kit: old1\ntitle: "x"\nstatus: merged\ncreated: 2026-01-01\nupdated: 2026-01-01`);
+  // a default listing names the archive with a count + the exact command
+  expect(run(board, [kits], dir).out).toMatch(/1 archived \(bun board\.ts .*kit-archive --all\)/);
+  // viewing the archive itself must NOT self-reference
+  expect(run(board, [archive, "--all"], dir).out).not.toMatch(/archived \(bun board\.ts/);
+});
+
 test("board aggregates open markers; --todos lists them; done markers excluded", () => {
   writeKit(kits, "mk", OK_FM().replace("%KIT%", "mk"),
     `<!-- TODO(id=T1, priority=high): wire it up -->\n<!-- TODO(status=done, id=T2): already handled -->`);

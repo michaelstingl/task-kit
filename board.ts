@@ -19,7 +19,7 @@
 //   - no kitsDir: tries _work/kits, then kits, then . (relative to cwd)
 //   - open markers (grouped by kit, priority-sorted) are listed by default; --brief prints the table only
 import { readdirSync, existsSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 
 const schema = JSON.parse(readFileSync(join(import.meta.dir, "kit.schema.json"), "utf8"));
 const props: Record<string, any> = schema.properties ?? {};
@@ -168,7 +168,18 @@ for (const { fm, errs, markers } of shown) {
 const bad = shown.filter((r) => r.errs.length).length;
 const openTotal = shown.reduce((n, r) => n + r.markers.filter(isOpen).length, 0);
 const hiddenNote = hiddenCount ? `, ${hiddenCount} done/closed hidden (--all)` : "";
-console.log(`\n${shown.length} kit(s) in ${kitsDir}, ${openTotal} open marker(s)${bad ? `, ${bad} with warnings` : ""}${hiddenNote}.`);
+// Sibling kit-archive holds retired kits OUTSIDE kitsDir, so they are invisible from a
+// default run — surface the count + the exact command (count-gated: silent when empty or
+// when the caller already passed an explicit dir).
+let archiveNote = "";
+if (basename(kitsDir) !== "kit-archive") {
+  const archiveDir = join(kitsDir, "..", "kit-archive");
+  if (existsSync(archiveDir) && statSync(archiveDir).isDirectory()) {
+    const n = readdirSync(archiveDir).filter((d) => existsSync(join(archiveDir, d, "SCOPE.md"))).length;
+    if (n) archiveNote = `, ${n} archived (bun board.ts ${archiveDir} --all)`;
+  }
+}
+console.log(`\n${shown.length} kit(s) in ${kitsDir}, ${openTotal} open marker(s)${bad ? `, ${bad} with warnings` : ""}${hiddenNote}${archiveNote}.`);
 console.log(`OPEN flags: T=TODO F=FIXME D=DECISION Q=QUESTION` + (showTodos ? "  ·  --brief for table only" : ""));
 console.log(`kit convention v${schema.version ?? "?"}  ·  board.ts (task-kit)`);
 
