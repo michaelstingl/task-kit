@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/michaelstingl/task-kit/kit.schema.json",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "title": "Generic kit frontmatter",
   "description": "YAML frontmatter at the top of each kit's lead file (SCOPE.md). One record per kit. Scan kits/*/SCOPE.md to build a board. Lenient/generic: domain-specific methods (e.g. contribution-method) may require additional fields via their own stricter schema.",
   "type": "object",

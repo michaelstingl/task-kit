@@ -75,6 +75,22 @@ Nothing else carries the number, so there is nothing else to update.
 
 A kit usually lives in one person's own gitignored scratch, private to that person. That fits most cases, because a kit is working notes and the pull request is what others read. When a handoff or a review calls for it, the kit can be shared. The unit to share is `SCOPE.md`, the dossier that records the decision, the rejected alternative, the reproduction, and the verification evidence. Post it into the issue or PR thread, or hand over the folder. The `kit_version` field tells the reader which conventions it follows.
 
+### Sharing a live kit via a synced folder
+
+For ongoing cross-machine or small-team work you can share the whole kit folder — not just `SCOPE.md` — through a synced folder (Dropbox, Nextcloud, OpenCloud, iCloud Drive, …), so the dossier stays live as the work advances.
+
+The obstacle is that many sync clients do not follow symlinks, and some (e.g. the OpenCloud desktop client) only sync one fixed folder per synced space, not an arbitrary local path. So symlinking `kits/<slug>` straight at a synced location does not sync. The pattern that works inverts it: keep the real bytes **inside** the synced folder and put the symlink **outside**, pointing in.
+
+```sh
+# once: mv the kit into the synced folder, then symlink it back into kits/
+mv _work/kits/<slug> "<synced-folder>/<slug>"
+ln -s "<synced-folder>/<slug>" _work/kits/<slug>
+```
+
+Your tooling keeps using `_work/kits/<slug>` (`board.ts` resolves through the symlink); the client syncs the bytes. Add `.git` and OS cruft (`.DS_Store`) to the client's ignored-files list.
+
+**Share only the dossier, never a build.** A kit that carries a git worktree or build output (`.git`, `node_modules`, a Rust `target/`) is the wrong thing to push into a synced folder — it is large, reproducible, and the worktree pointer breaks when relocated. Keep those local; share the text. When a kit is finished, remove its worktree with `git worktree remove` (not `rm -rf`, which leaves a stale registration) and move the kit to `kit-archive/`.
+
 ## Adopt in a project
 
 The kit system is consumed by symlinking this repo into a project's gitignored scratch.
