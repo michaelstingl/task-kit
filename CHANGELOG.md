@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com); versioning follows SemVe
 README "Versioning" section). The canonical version number lives only in `kit.schema.json`
 (`version`); this file is the only place release notes live.
 
+## 0.6.4
+
+### Added
+- README: **"Sharing a live kit via a synced folder"** — documents the cross-machine/small-team pattern of sharing the whole kit folder through a synced folder (Dropbox, Nextcloud, OpenCloud, iCloud Drive, …). Because many sync clients do not follow symlinks (and some sync only one fixed folder per space), the working pattern inverts the usual layout: real bytes live **inside** the synced folder, a symlink in `kits/<slug>` points **in**. Includes the caveat to share only the text dossier, never a git worktree or build output. Convention/schema unchanged (doc-only).
+
 ## 0.6.3
 
 ### Changed
