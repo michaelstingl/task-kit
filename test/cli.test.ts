@@ -99,3 +99,14 @@ test("board aggregates open markers; --todos lists them; done markers excluded",
   expect(r.out).toContain("wire it up");
   expect(r.out).not.toContain("already handled");
 });
+
+test("DEBT marker: '$' flag, and a missing trigger= is flagged", () => {
+  writeKit(kits, "dk", OK_FM().replace("%KIT%", "dk"),
+    `<!-- DEBT(id=D1, trigger=before v2): scoped too wide -->\n<!-- DEBT(id=D2): no repay condition -->`);
+  const r = run(board, [kits, "--todos"], dir);
+  expect(r.out).toContain("2$");                 // both open DEBT markers under the $ flag
+  expect(r.out).toContain("$=DEBT");             // legend documents the flag
+  expect(r.out).toContain("1 DEBT marker(s) missing trigger="); // summary count (only D2)
+  expect(r.out).toContain("needs trigger=");     // per-marker nudge on D2
+  expect(r.out).toContain("trigger before v2");  // D1's trigger surfaced in meta
+});
