@@ -17,10 +17,10 @@ test("refsFromText extracts org/repo#n and github issue/pull URLs, deduped", () 
 });
 
 test("refsFromText resolves bare #N against a default repo, leaves qualified refs intact", () => {
-  const refs = refsFromText("part of #235; see also foo/bar#12", "perf/cockpit");
-  expect(refs).toContain("perf/cockpit#235");   // bare → default repo
+  const refs = refsFromText("part of #235; see also foo/bar#12", "acme/server");
+  expect(refs).toContain("acme/server#235");   // bare → default repo
   expect(refs).toContain("foo/bar#12");          // qualified stays qualified
-  expect(refs).not.toContain("perf/cockpit#12"); // #12 belongs to foo/bar, not defaulted
+  expect(refs).not.toContain("acme/server#12"); // #12 belongs to foo/bar, not defaulted
 });
 
 test("refsFromText without a default repo ignores bare #N (no false refs)", () => {
@@ -33,13 +33,13 @@ const SCOPE = `---
 kit: sample
 status: submitted
 repos:
-  - repo: perf/cockpit
+  - repo: acme/server
     branch: feat/foo
-    refs: [#235, perf/cockpit#364, other/repo#9]
-  - repo: perf/other
+    refs: [#235, acme/server#364, other/repo#9]
+  - repo: acme/client
     branch:
     refs: [#92]
-  - repo: perf/nobr
+  - repo: acme/docs
     branch: feat/bar
     refs: []
 ---
@@ -50,15 +50,15 @@ const LEGACY = `---
 kit: sample
 status: submitted
 repos:
-  - repo: perf/cockpit
+  - repo: acme/server
     branch: feat/foo
     issue: 235
     pr: 364
-  - repo: perf/other
+  - repo: acme/client
     branch:
     issue: 91
     pr: 92
-  - repo: perf/nobr
+  - repo: acme/docs
     branch: feat/bar
     issue:
     pr:
@@ -69,10 +69,10 @@ test("parseRepos reads refs, resolving bare #n against the entry's own repo", ()
   const r = parseRepos(SCOPE);
   expect(r.length).toBe(3);
   expect(r[0]).toEqual({
-    repo: "perf/cockpit",
+    repo: "acme/server",
     branch: "feat/foo",
     // #235 -> this entry's repo; an already-qualified ref is left alone, even a foreign one
-    refs: ["perf/cockpit#235", "perf/cockpit#364", "other/repo#9"],
+    refs: ["acme/server#235", "acme/server#364", "other/repo#9"],
   });
   expect(r[1].branch).toBeUndefined();  // empty `branch:` value
   expect(r[2].refs).toEqual([]);        // empty list is not an error
@@ -83,17 +83,17 @@ test("parseRepos accepts refs as a block list too", () => {
 kit: sample
 status: building
 repos:
-  - repo: perf/cockpit
+  - repo: acme/server
     branch: feat/foo
     refs:
       - #1
-      - perf/other#2
-  - repo: perf/second
+      - acme/client#2
+  - repo: acme/lib
     branch: feat/bar
     refs: [#3]
 ---`);
-  expect(r[0].refs).toEqual(["perf/cockpit#1", "perf/other#2"]);
-  expect(r[1].refs).toEqual(["perf/second#3"]);   // the block list must not swallow the next entry
+  expect(r[0].refs).toEqual(["acme/server#1", "acme/client#2"]);
+  expect(r[1].refs).toEqual(["acme/lib#3"]);   // the block list must not swallow the next entry
 });
 
 test("parseRepos still reads the legacy pr:/issue: scalars, folding both into refs", () => {
@@ -101,23 +101,23 @@ test("parseRepos still reads the legacy pr:/issue: scalars, folding both into re
   // issue: 235 was written by 30 kits and read by NOTHING before 0.8 — picking it up is the point.
   // Order follows the FILE (issue: sits above pr:), not the parser's branch order — refs are a
   // set in spirit, so this asserts the real reading order rather than an imagined one.
-  expect(r[0].refs).toEqual(["perf/cockpit#235", "perf/cockpit#364"]);
-  expect(r[1].refs).toEqual(["perf/other#91", "perf/other#92"]);
+  expect(r[0].refs).toEqual(["acme/server#235", "acme/server#364"]);
+  expect(r[1].refs).toEqual(["acme/client#91", "acme/client#92"]);
   expect(r[2].refs).toEqual([]);        // empty values stay empty, not "#undefined"
 });
 
 test("ownRefs: the BRANCH is the ownership marker — every ref of an entry that has one", () => {
   const own = ownRefs(SCOPE);
   // issues count as ours too: an open issue is open work, so isStale stays conservative
-  expect(own).toEqual(["perf/cockpit#235", "perf/cockpit#364", "other/repo#9"]);
-  expect(own).not.toContain("perf/other#92");   // no branch → referenced, not ours (WSR-D2)
+  expect(own).toEqual(["acme/server#235", "acme/server#364", "other/repo#9"]);
+  expect(own).not.toContain("acme/client#92");   // no branch → referenced, not ours (WSR-D2)
 });
 
 test("ownRefs on the legacy shape yields what the old ownPrRefs did, plus the issue", () => {
   const own = ownRefs(LEGACY);
-  expect(own).toContain("perf/cockpit#364");    // what the old parser found
-  expect(own).toContain("perf/cockpit#235");    // what it silently dropped
-  expect(own).not.toContain("perf/other#92");   // empty branch → still not ours
+  expect(own).toContain("acme/server#364");    // what the old parser found
+  expect(own).toContain("acme/server#235");    // what it silently dropped
+  expect(own).not.toContain("acme/client#92");   // empty branch → still not ours
 });
 
 test("parseStatus reads the frontmatter status", () => {
