@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com); versioning follows SemVe
 README "Versioning" section). The canonical version number lives only in `kit.schema.json`
 (`version`); this file is the only place release notes live.
 
+## 0.7.0
+
+### Added
+- **New marker kind `DEBT`** — a knowingly accepted shortcut, a lightweight [Technical Debt Record](https://www.workingsoftware.dev/technical-debt-records/), distinct from `DECISION` by one **required** attr `trigger=` (the repay condition). The trigger is what keeps accepted debt from rotting — the documented failure mode of a plain `TODO` nobody revisits. `board.ts` aggregates `DEBT` in the OPEN column under the flag **`$`** (it can't reuse `DECISION`'s `D`), and **loudly flags any `DEBT` marker missing `trigger=`** (both a per-marker `⚠ needs trigger=` in the listing and a summary count). README documents the kind and its **lifecycle**: a `DEBT` marker is the working form while a problem lives in a kit; on graduation it is promoted into the project repo's own convention (e.g. a `docs/debt/` record), carrying the same fields. **MINOR** (additive): old kits stay valid, an older `board.ts` still works (it simply ignores `DEBT` markers).
+
 ## 0.6.4
 
 ### Added

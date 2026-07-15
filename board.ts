@@ -78,9 +78,12 @@ function parseFrontmatter(text: string): FM | null {
 }
 
 // ---- structured TODO markers (W3C-PROV doc-architecture rule 6) ----
-const KINDS = ["TODO", "FIXME", "DECISION", "QUESTION"] as const;
+const KINDS = ["TODO", "FIXME", "DECISION", "QUESTION", "DEBT"] as const;
+// Flag letters shown in the OPEN column. DEBT can't reuse DECISION's "D", so it
+// gets "$" (accepted debt = a bill that comes due). Explicit map, not k[0].
+const FLAG: Record<string, string> = { TODO: "T", FIXME: "F", DECISION: "D", QUESTION: "Q", DEBT: "$" };
 // KIND ( optional attrs ) optional-colon description -->
-const MARKER_RE = /<!--\s*(TODO|FIXME|DECISION|QUESTION)\s*(?:\(([^)]*)\))?\s*:?\s*([\s\S]*?)\s*-->/g;
+const MARKER_RE = /<!--\s*(TODO|FIXME|DECISION|QUESTION|DEBT)\s*(?:\(([^)]*)\))?\s*:?\s*([\s\S]*?)\s*-->/g;
 type Marker = { kind: string; attrs: Record<string, string>; text: string; file: string };
 function parseAttrs(s: string): Record<string, string> {
   const a: Record<string, string> = {};
@@ -111,7 +114,7 @@ function flags(markers: Marker[]): string {
   const open = markers.filter(isOpen);
   const c: Record<string, number> = {};
   for (const m of open) c[m.kind] = (c[m.kind] ?? 0) + 1;
-  return KINDS.map((k) => (c[k] ? `${c[k]}${k[0]}` : "")).filter(Boolean).join(" ");
+  return KINDS.map((k) => (c[k] ? `${c[k]}${FLAG[k]}` : "")).filter(Boolean).join(" ");
 }
 const PRIO: Record<string, number> = { high: 0, medium: 1, med: 1, low: 2, "": 3 };
 
@@ -180,7 +183,11 @@ if (basename(kitsDir) !== "kit-archive") {
   }
 }
 console.log(`\n${shown.length} kit(s) in ${kitsDir}, ${openTotal} open marker(s)${bad ? `, ${bad} with warnings` : ""}${hiddenNote}${archiveNote}.`);
-console.log(`OPEN flags: T=TODO F=FIXME D=DECISION Q=QUESTION` + (showTodos ? "  ·  --brief for table only" : ""));
+console.log(`OPEN flags: T=TODO F=FIXME D=DECISION Q=QUESTION $=DEBT` + (showTodos ? "  ·  --brief for table only" : ""));
+// DEBT markers MUST carry a repay trigger= — without it, accepted debt rots
+// (the whole reason DEBT is its own kind). Surface trigger-less ones loudly.
+const debtNoTrigger = shown.flatMap((r) => r.markers).filter((m) => isOpen(m) && m.kind === "DEBT" && !m.attrs.trigger);
+if (debtNoTrigger.length) console.log(`⚠ ${debtNoTrigger.length} DEBT marker(s) missing trigger= (a debt with no repay condition is silently forgotten)`);
 console.log(`kit convention v${schema.version ?? "?"}  ·  board.ts (task-kit)`);
 
 // ---- optional: list open markers grouped by kit, priority-sorted ----
@@ -190,8 +197,9 @@ if (showTodos) {
     if (!open.length) continue;
     console.log(`\n### ${fm.kit}`);
     for (const m of open) {
-      const meta = [m.attrs.id, m.attrs.priority, m.attrs.owner && `@${m.attrs.owner}`, m.attrs.due && `due ${m.attrs.due}`].filter(Boolean).join(", ");
-      console.log(`  ${m.kind.padEnd(8)} ${meta ? `(${meta}) ` : ""}${m.text}  ·  ${m.file}`);
+      const meta = [m.attrs.id, m.attrs.priority, m.attrs.owner && `@${m.attrs.owner}`, m.attrs.due && `due ${m.attrs.due}`, m.attrs.trigger && `trigger ${m.attrs.trigger}`].filter(Boolean).join(", ");
+      const needTrigger = m.kind === "DEBT" && !m.attrs.trigger ? "  ⚠ needs trigger=" : "";
+      console.log(`  ${m.kind.padEnd(8)} ${meta ? `(${meta}) ` : ""}${m.text}  ·  ${m.file}${needTrigger}`);
     }
   }
 }

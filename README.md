@@ -47,7 +47,15 @@ Open work lives as HTML-comment markers inside any `*.md` in a kit (invisible wh
 <!-- TODO(owner=alice, priority=high, due=2026-04-10, id=T001): description -->
 ```
 
-Kinds: `TODO` `FIXME` `DECISION` `QUESTION`. Attrs are optional; a marker counts as open unless `status=done`/`wontfix`. Edit the marker in place — never an aggregate.
+Kinds: `TODO` `FIXME` `DECISION` `QUESTION` `DEBT`. Attrs are optional; a marker counts as open unless `status=done`/`wontfix`. Edit the marker in place — never an aggregate.
+
+**`DEBT` — a knowingly accepted shortcut** (a lightweight [Technical Debt Record](https://www.workingsoftware.dev/technical-debt-records/)), distinct from `DECISION` (a choice) by one required attr: **`trigger=`**, the condition under which the debt is repaid. The trigger is what stops accepted debt from rotting — the documented failure mode of a plain `TODO` nobody revisits. `board.ts` flags a `DEBT` marker that is missing `trigger=`.
+
+```
+<!-- DEBT(owner=alice, id=D1, trigger=before v2 ships): auth uses a shared secret · accepted-because: deadline · blast-radius: all tenants if leaked -->
+```
+
+**Lifecycle — kit until graduation, then the project's own structure.** A `DEBT` marker is the *working* form while the problem lives in a kit. When the work graduates, the debt graduates with it: promote the marker into the project repo's own convention — e.g. a `docs/debt/` Technical Debt Record — so it becomes durable, reviewable team knowledge rather than a note in personal scratch. Carry the same fields across (what · accepted-because · blast-radius · **trigger** · owner). The kit marker is transient; the repo record is where a graduated debt lives.
 
 ## Versioning
 
