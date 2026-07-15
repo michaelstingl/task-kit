@@ -192,14 +192,22 @@ updated: 2026-06-02
 repos:
   - repo: example/server
     branch: fix/session-expiry
-    issue: 12
-    pr: 14
+    refs: [#12, #14]              # issues AND PRs, unlimited; bare #n = this entry's repo
   - repo: example/client
     branch: fix/session-expiry
-    issue: 5
-    pr: 7
+    refs: [#5, #7, other/lib#3]   # a foreign ref stays qualified
 ---
 ```
+
+### `repos` — the kit's own work
+
+One entry per **repo + branch**. The **branch is the ownership marker**: an entry with one is work you opened; one without is a repo you merely touch or reference. Each PR gets its own branch, so repo+branch identifies exactly one PR — and a problem needing several PRs in one repo is several entries, not a bigger field.
+
+`refs` holds **issues and pull requests together**, in one notation, with no limit. Do not declare which is which: the tooling asks GitHub (an issue and a PR share a numbering space; `.pull_request != null` tells them apart) and reads their state from there. It is the same `owner/repo#n` notation `watch.ts` already scans for in prose — so frontmatter and text finally speak one dialect.
+
+**In-flight work only — `repos` is not an archive.** Once an entry's work has landed, drop it; the history lives in the changelog and in the PRs themselves. That is not tidiness: `watch.ts` reconciles `status:` against these refs, so carrying merged entries forever makes every kit look terminal and the check fires falsely. A check that cries wolf gets ignored — which costs more than the gap it was covering.
+
+> **Deprecated since 0.8:** the `pr:` and `issue:` scalars. Both are still parsed, so nothing disappears on upgrade, and the board warns rather than blocks. `issue:` in particular never worked at all: a bare number has no `#`, so the prose scanner never saw it and the frontmatter parser never looked for it — 30 kits wrote it and nothing read it.
 
 ## Worktree per repo
 

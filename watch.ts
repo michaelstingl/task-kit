@@ -33,33 +33,67 @@ export function refsFromText(text: string, defaultRepo?: string): string[] {
   return [...out];
 }
 
-type RepoEntry = { repo: string; branch?: string; pr?: string };
+type RepoEntry = { repo: string; branch?: string; refs: string[] };
 
-/** Parse the `repos:` list from a SCOPE.md frontmatter (repo/branch/pr per entry; empty values omitted). */
+/**
+ * Parse the `repos:` list from a SCOPE.md frontmatter.
+ *
+ * Since 0.8 an entry's issues/PRs live in `refs:` as `owner/repo#n` (or bare `#n`, resolved
+ * against that entry's own `repo`) — unlimited, and ONE notation for both kinds, because the
+ * tooling asks GitHub what a number IS (`.pull_request != null`) instead of making the author
+ * declare it. That is the same notation this file already scans for in prose, so frontmatter and
+ * text finally speak one dialect.
+ *
+ * The legacy `pr:`/`issue:` scalars are still folded in, so nobody's data vanishes on upgrade.
+ * `issue:` especially: it was written by 30 kits and read by NOTHING — a bare number has no `#`,
+ * so the prose scanner never saw it, and the old parser never looked for it. It fell between two
+ * stools; picking it up is the point of this change, not a courtesy.
+ */
 export function parseRepos(scope: string): RepoEntry[] {
   const fm = scope.match(/^---\n([\s\S]*?)\n---/);
   if (!fm) return [];
   const out: RepoEntry[] = [];
-  let inRepos = false, cur: RepoEntry | null = null;
+  let inRepos = false, inRefs = false, cur: RepoEntry | null = null;
   const push = () => { if (cur) out.push(cur); cur = null; };
+  const add = (raw: string, e: RepoEntry) => {
+    for (const t of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+      const m = t.match(/^([A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*)?#(\d+)$/);
+      if (m) e.refs.push(`${m[1] ?? e.repo}#${m[2]}`);   // bare #n -> this entry's own repo
+    }
+  };
   for (const line of fm[1].split("\n")) {
     if (/^repos:\s*$/.test(line)) { inRepos = true; continue; }
     if (!inRepos) continue;
     if (/^\S/.test(line)) { push(); inRepos = false; continue; } // next top-level key ends the block
     const item = line.match(/^\s*-\s*repo:\s*(\S+)/);
-    if (item) { push(); cur = { repo: item[1] }; continue; }
+    if (item) { push(); cur = { repo: item[1], refs: [] }; inRefs = false; continue; }
     if (!cur) continue;
+    if (/^\s+refs:\s*$/.test(line)) { inRefs = true; continue; }   // block form: `- #n` lines follow
+    if (inRefs) {
+      const bullet = line.match(/^\s*-\s*(\S+)/);
+      if (bullet) { add(bullet[1], cur); continue; }
+      inRefs = false;                                              // any other key ends the block
+    }
+    const inline = line.match(/^\s+refs:\s*\[(.*)\]/);
+    if (inline) { add(inline[1], cur); continue; }
     const b = line.match(/^\s+branch:\s*(\S+)/); if (b && !b[1].startsWith("#")) cur.branch = b[1];
-    const p = line.match(/^\s+pr:\s*(\d+)/);     if (p) cur.pr = p[1];
+    // legacy (deprecated 0.8) — folded into refs so old kits keep working
+    const p = line.match(/^\s+pr:\s*(\d+)/);    if (p) cur.refs.push(`${cur.repo}#${p[1]}`);
+    const i = line.match(/^\s+issue:\s*(\d+)/); if (i) cur.refs.push(`${cur.repo}#${i[1]}`);
   }
   push();
   return out;
 }
 
-/** The kit's OWN PRs: `owner/repo#pr` for entries with both a branch AND a pr (a bare `pr:`
- * with no branch is a mere reference to someone else's PR, not ours — WSR-D2). */
-export function ownPrRefs(scope: string): string[] {
-  return parseRepos(scope).filter((r) => r.branch && r.pr).map((r) => `${r.repo}#${r.pr}`);
+/**
+ * The kit's OWN issues/PRs: every ref of an entry that HAS A BRANCH.
+ *
+ * The branch is the ownership marker (WSR-D2): an entry with one is work we opened; one without
+ * is a repo we merely touch. Same distinction as the pre-0.8 "branch AND pr", now that an entry
+ * can carry more than one ref.
+ */
+export function ownRefs(scope: string): string[] {
+  return [...new Set(parseRepos(scope).filter((r) => r.branch).flatMap((r) => r.refs))];
 }
 
 /** The kit-level `status:` from frontmatter. */
@@ -100,7 +134,7 @@ if (import.meta.main) {
     const status = parseStatus(scope);
     const repos = parseRepos(scope);
     const defaultRepo = repos[0]?.repo;                                    // resolve bare #n against this
-    const own = ownPrRefs(scope);                                          // the kit's own PRs (branch+pr)
+    const own = ownRefs(scope);                                            // the kit's own issues+PRs (entries with a branch)
     let text = "";
     for (const f of readdirSync(dir)) if (f.endsWith(".md")) text += readFileSync(join(dir, f), "utf8") + "\n";
     // Query text refs + the kit's own PRs (own may live only in `repos:` frontmatter, which

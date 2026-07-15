@@ -3,7 +3,13 @@ kit: <slug>
 title: "<one-line problem or topic>"
 status: active          # active | blocked | scoping | building | reviewing | submitted | parked | reference | merged | done | closed
 area: [<tag>]           # optional: topic tags for filtering (board.ts)
-links: [<org/repo#n>, <url>]   # optional: related issues / PRs / sources
+links: [<org/repo#n>, <url>]   # optional: things you REFERENCE but do not own
+# repos:                      # optional: your OWN work — one entry per repo+branch
+#   - repo: <owner/name>      #   branch = the ownership marker: with one = you opened it,
+#     branch: <fix/slug>      #   without = a repo you merely touch
+#     refs: [#12, #14]        #   issues AND PRs, unlimited; bare #n = this entry's repo
+#                             #   IN-FLIGHT ONLY — drop an entry once its work lands. watch.ts
+#                             #   reconciles status: against these, so stale entries make it lie.
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
 ---
