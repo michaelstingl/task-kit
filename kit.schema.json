@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/michaelstingl/task-kit/kit.schema.json",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "title": "Generic kit frontmatter",
   "description": "YAML frontmatter at the top of each kit's lead file (SCOPE.md). One record per kit. Scan kits/*/SCOPE.md to build a board. Lenient/generic: domain-specific methods (e.g. contribution-method) may require additional fields via their own stricter schema.",
   "type": "object",
@@ -36,8 +36,45 @@
     },
     "links": {
       "type": "array",
-      "description": "Related refs: org/repo#n, URLs, repo names.",
+      "description": "Things this kit REFERENCES but does not own: other people's issues/PRs, docs, sources. Ownership is what separates this from `repos` — see there.",
       "items": { "type": "string" }
+    },
+    "repos": {
+      "type": "array",
+      "description": "The kit's OWN work, one entry per repo+branch. This is the contract watch.ts reads to reconcile `status` against reality — a kit that says `building` while all its own PRs are merged is stale, and that check is only as good as this list. IN-FLIGHT WORK ONLY, not an archive: when an entry's work has landed, drop it (history lives in the changelog and in the PRs themselves). Carrying merged entries forever makes every kit look terminal and the reconcile fires falsely — a check that cries wolf gets ignored, which costs more than the gap it covered.",
+      "items": {
+        "type": "object",
+        "required": ["repo"],
+        "additionalProperties": false,
+        "properties": {
+          "repo": {
+            "type": "string",
+            "description": "owner/name of the repo this entry's work lives in.",
+            "pattern": "^[A-Za-z0-9][\\w.-]*/[A-Za-z0-9][\\w.-]*$"
+          },
+          "branch": {
+            "type": "string",
+            "description": "The branch the work sits on — and the OWNERSHIP MARKER: an entry with a branch is work we opened, one without is a repo we merely touch. Each PR gets its own branch, so repo+branch identifies exactly one PR.",
+            "minLength": 1
+          },
+          "refs": {
+            "type": "array",
+            "description": "Issues AND pull requests belonging to this entry, unlimited, in ONE notation: `owner/repo#n`, or bare `#n` resolved against this entry's `repo`. Do not declare which is which — the tooling asks GitHub (an issue and a PR share a numbering space; `.pull_request != null` distinguishes them) and reads their state from there. This is the same notation watch.ts already scans for in prose, so the frontmatter finally speaks the same dialect as the text next to it.",
+            "items": { "type": "string", "pattern": "^(?:[A-Za-z0-9][\\w.-]*/[A-Za-z0-9][\\w.-]*)?#[0-9]+$" },
+            "uniqueItems": true
+          },
+          "pr": {
+            "deprecated": true,
+            "description": "DEPRECATED since 0.8 — use `refs`. A bare number here says nothing about whether it is an issue or a PR and cannot express more than one. Still parsed so nobody's data disappears silently; migrate to `refs`.",
+            "type": ["integer", "string", "null"]
+          },
+          "issue": {
+            "deprecated": true,
+            "description": "DEPRECATED since 0.8 — use `refs`. Worse than `pr`: it fell between two stools, written by 30 kits and read by nothing — the prose scanner never saw it (a bare number has no `#`) and the frontmatter parser never looked for it.",
+            "type": ["integer", "string", "null"]
+          }
+        }
+      }
     },
     "created": { "type": "string", "format": "date" },
     "updated": { "type": "string", "format": "date" }

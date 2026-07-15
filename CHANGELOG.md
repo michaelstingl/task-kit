@@ -5,6 +5,26 @@ Format: [Keep a Changelog](https://keepachangelog.com); versioning follows SemVe
 README "Versioning" section). The canonical version number lives only in `kit.schema.json`
 (`version`); this file is the only place release notes live.
 
+## 0.8.0
+
+### Added
+- **`repos` is now in the schema.** It never was — 37 kits wrote it, `watch.ts` parsed it as a hard contract, and `additionalProperties: true` let it through in silence. An unvalidated contract drifts: the one field the reconcile depends on was the one field nothing checked.
+- **`repos[].refs`** — issues *and* PRs together, unlimited, in one notation: `owner/repo#n`, or bare `#n` resolved against that entry's own `repo`. Nothing declares which kind a number is; the tooling asks GitHub (`.pull_request != null`) and reads state from there. It is the same notation `watch.ts` already scans for in prose, so frontmatter and text finally speak one dialect.
+- **`board.ts` validates `repos`** — repo shape, ref format, and a warning on the deprecated scalars.
+
+### Changed
+- **One parser, two consumers.** `board.ts` now imports `parseRepos` from `watch.ts`. Its own frontmatter reader deliberately skips nested YAML, so it could never see `repos` at all — a check written against it there would have been a check that *cannot fire*. The board and the reconcile can no longer disagree about what a kit declares, which they silently did.
+- `ownPrRefs` → **`ownRefs`**: it returns issues too now, so the old name lied. An entry with a branch contributes *all* its refs. This makes `isStale` more conservative on purpose — an open issue is open work, and a check that stays quiet while work is open is the kind that survives.
+
+### Deprecated
+- **`repos[].pr` and `repos[].issue`.** Still parsed (nothing disappears on upgrade) and only warned about, never rejected — making it fatal would light up every existing kit in one commit, and a board nobody can read is a board nobody reads.
+- `issue:` deserves its epitaph: **written by 30 kits, read by nothing.** A bare number has no `#`, so the prose scanner never saw it; the frontmatter parser never looked for it. It fell between two stools for its whole life.
+
+### Migration
+- `issue: 12` + `pr: 14` → `refs: [#12, #14]`; bare `#n` resolves to that entry's `repo`.
+- Bump each kit's `kit_version` to `0.8`. The board warns until you do — it compares MAJOR.MINOR only.
+- **The rule that ships with the shape:** `repos` carries **in-flight work, not history**. Drop an entry once its work lands; the changelog and the PRs keep the record. Carrying merged entries forever makes every kit look terminal and the reconcile fires falsely.
+
 ## 0.7.0
 
 ### Added

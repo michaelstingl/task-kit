@@ -20,6 +20,13 @@
 //   - open markers (grouped by kit, priority-sorted) are listed by default; --brief prints the table only
 import { readdirSync, existsSync, readFileSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
+// ONE parser for `repos`, two consumers. This import is the point, not a convenience: board.ts's
+// own frontmatter reader deliberately skips nested YAML ("skip block-YAML continuation / list
+// items"), so it could never see `repos` at all — any check written against it here would have
+// been a check that cannot fire. watch.ts already had the real parser; sharing it means the board
+// and the reconcile can no longer disagree about what a kit declares. (watch.ts guards its CLI
+// behind `import.meta.main`, so importing it runs nothing.)
+import { parseRepos } from "./watch.ts";
 
 const schema = JSON.parse(readFileSync(join(import.meta.dir, "kit.schema.json"), "utf8"));
 const props: Record<string, any> = schema.properties ?? {};
@@ -132,6 +139,34 @@ function validate(fm: FM): string[] {
   return errs;
 }
 
+/**
+ * `repos` is the contract watch.ts reconciles `status` against — and it went unvalidated until
+ * 0.8, so 37 kits wrote a field the schema did not know, and one of its keys (`issue:`) was read
+ * by nothing at all. Checked here via the SAME parser watch.ts uses, because an unvalidated
+ * contract drifts in silence, and a reconcile is only ever as good as the list it reads.
+ *
+ * Takes the raw text, not `fm` — board.ts's own frontmatter reader cannot see nested YAML.
+ */
+const repoProps = props.repos?.items?.properties ?? {};
+function validateReposIn(text: string): string[] {
+  const errs: string[] = [];
+  const repoPat = repoProps.repo?.pattern && new RegExp(repoProps.repo.pattern);
+  const refPat = repoProps.refs?.items?.pattern && new RegExp(repoProps.refs.items.pattern);
+  parseRepos(text).forEach((e, i) => {
+    const at = `repos[${i}]`;
+    if (repoPat && !repoPat.test(e.repo)) errs.push(`${at} repo "${e.repo}" is not owner/name`);
+    for (const r of e.refs) if (refPat && !refPat.test(r)) errs.push(`${at} ref "${r}" is not owner/repo#n`);
+  });
+  // Deprecated, and deliberately a WARNING rather than an error: the legacy scalars are still
+  // parsed, so nothing is broken. Making it fatal would light up every existing kit in one commit
+  // — and a board nobody can read is a board nobody reads, which is the failure a check exists to
+  // prevent (a guard that cries wolf gets switched off, taking its useful half with it).
+  const fmBlock = text.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+  const legacy = [...fmBlock.matchAll(/^\s+(pr|issue):\s*(\d+)/gm)];
+  if (legacy.length) errs.push(`${legacy.length}× legacy \`pr:\`/\`issue:\` — deprecated since 0.8, use refs: [#n]`);
+  return errs;
+}
+
 // ---- collect ----
 const STATUS_ORDER: string[] = props.status?.enum ?? []; // single source: the schema's status enum order
 function rank(s: string): number {
@@ -146,9 +181,10 @@ for (const name of readdirSync(kitsDir)) {
   if (!existsSync(kitDir) || !statSync(kitDir).isDirectory()) continue;
   const lead = join(kitDir, "SCOPE.md");
   if (!existsSync(lead)) continue;
-  const fm = parseFrontmatter(readFileSync(lead, "utf8"));
+  const text = readFileSync(lead, "utf8");
+  const fm = parseFrontmatter(text);
   if (!fm) { rows.push({ fm: { kit: name, title: "(no frontmatter)", status: "?" }, errs: ["no frontmatter"], markers: [] }); continue; }
-  const errs = validate(fm);
+  const errs = [...validate(fm), ...validateReposIn(text)];
   if (fm.kit && fm.kit !== name) errs.push(`kit slug ≠ folder (${name})`);
   if (!fm.kit) fm.kit = name;
   rows.push({ fm, errs, markers: scanMarkers(kitDir) });
