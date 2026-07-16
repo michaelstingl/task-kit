@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 const root = dirname(import.meta.dir); // repo root (this file is in test/)
 const board = join(root, "board.ts");
 const newkit = join(root, "new-kit.ts");
+const lint = join(root, "lint.ts");
 
 function run(script: string, args: string[], cwd: string) {
   const p = Bun.spawnSync(["bun", script, ...args], { cwd });
@@ -109,4 +110,55 @@ test("DEBT marker: '$' flag, and a missing trigger= is flagged", () => {
   expect(r.out).toContain("1 DEBT marker(s) missing trigger="); // summary count (only D2)
   expect(r.out).toContain("needs trigger=");     // per-marker nudge on D2
   expect(r.out).toContain("trigger before v2");  // D1's trigger surfaced in meta
+});
+
+test("lint: a clean kit passes (exit 0), incl. extended valid statuses", () => {
+  writeKit(kits, "ok", OK_FM().replace("%KIT%", "ok"),
+    `<!-- TODO(id=T1): open -->\n<!-- DECISION(id=D1, status=superseded): replaced -->\n<!-- QUESTION(id=Q1, status=answered): resolved -->\n<!-- TODO(id=T2, status=deferred): later -->\n<!-- DEBT(id=B1, trigger=before v2): shortcut -->\n<!-- NOTE(id=N1): evidence -->`);
+  const r = run(lint, [kits], dir);
+  expect(r.code).toBe(0);
+  expect(r.out).toContain("markers valid");
+});
+
+test("lint: unknown KIND is rejected", () => {
+  writeKit(kits, "bad", OK_FM().replace("%KIT%", "bad"), `<!-- FINDING(id=X1): invented kind -->`);
+  const r = run(lint, [kits], dir);
+  expect(r.code).toBe(1);
+  expect(r.out).toContain("unknown marker kind FINDING");
+});
+
+test("lint: unknown STATUS is rejected, with a suggestion", () => {
+  writeKit(kits, "bad", OK_FM().replace("%KIT%", "bad"), `<!-- DECISION(id=X1, status=dead): overtaken -->`);
+  const r = run(lint, [kits], dir);
+  expect(r.code).toBe(1);
+  expect(r.out).toContain("unknown status=dead");
+  expect(r.out).toContain("status=wontfix");   // the suggestion
+});
+
+test("lint: a DEBT without trigger= is rejected", () => {
+  writeKit(kits, "bad", OK_FM().replace("%KIT%", "bad"), `<!-- DEBT(id=X1): a shortcut with no repay condition -->`);
+  const r = run(lint, [kits], dir);
+  expect(r.code).toBe(1);
+  expect(r.out).toContain("missing trigger=");
+});
+
+test("lint: duplicate id on two open markers is rejected", () => {
+  writeKit(kits, "bad", OK_FM().replace("%KIT%", "bad"), `<!-- TODO(id=DUP): one -->\n<!-- FIXME(id=DUP): two -->`);
+  const r = run(lint, [kits], dir);
+  expect(r.code).toBe(1);
+  expect(r.out).toContain("duplicate id DUP");
+});
+
+test("lint: a done marker sharing an id with an open one is NOT a collision", () => {
+  writeKit(kits, "ok", OK_FM().replace("%KIT%", "ok"), `<!-- TODO(id=X, status=done): finished -->\n<!-- TODO(id=X): the live one -->`);
+  const r = run(lint, [kits], dir);
+  expect(r.code).toBe(0);
+});
+
+test("board hides extended terminal statuses (superseded/answered/decided), not just done/wontfix", () => {
+  writeKit(kits, "mk", OK_FM().replace("%KIT%", "mk"),
+    `<!-- DECISION(id=D1, status=superseded): gone -->\n<!-- TODO(id=T1): the only open one -->`);
+  const r = run(board, [kits, "--todos"], dir);
+  expect(r.out).toContain("1T");                 // only the open TODO counts
+  expect(r.out).not.toContain("1D");             // the superseded DECISION is hidden
 });

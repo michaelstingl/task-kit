@@ -85,7 +85,9 @@ function parseFrontmatter(text: string): FM | null {
 }
 
 // ---- structured TODO markers (W3C-PROV doc-architecture rule 6) ----
-const KINDS = ["TODO", "FIXME", "DECISION", "QUESTION", "DEBT"] as const;
+// counted kinds come from the schema (single source, shared with lint.ts) — NOTE is a
+// valid kind there but deliberately not counted, so it stays out of this list.
+const KINDS: string[] = schema.marker?.countedKinds ?? ["TODO", "FIXME", "DECISION", "QUESTION", "DEBT"];
 // Flag letters shown in the OPEN column. DEBT can't reuse DECISION's "D", so it
 // gets "$" (accepted debt = a bill that comes due). Explicit map, not k[0].
 const FLAG: Record<string, string> = { TODO: "T", FIXME: "F", DECISION: "D", QUESTION: "Q", DEBT: "$" };
@@ -101,9 +103,11 @@ function parseAttrs(s: string): Record<string, string> {
   }
   return a;
 }
+// terminal marker statuses come from the schema (single source, shared with lint.ts):
+// done/wontfix (work) + answered (a QUESTION) + superseded (a DECISION replaced) + decided.
+const MARKER_TERMINAL = new Set<string>((schema.marker?.status?.terminal ?? ["done", "wontfix"]).map((s: string) => s.toLowerCase()));
 function isOpen(m: Marker): boolean {
-  const s = (m.attrs.status ?? "").toLowerCase();
-  return s !== "done" && s !== "wontfix";
+  return !MARKER_TERMINAL.has((m.attrs.status ?? "").toLowerCase());
 }
 function scanMarkers(dir: string): Marker[] {
   const out: Marker[] = [];
@@ -121,7 +125,7 @@ function flags(markers: Marker[]): string {
   const open = markers.filter(isOpen);
   const c: Record<string, number> = {};
   for (const m of open) c[m.kind] = (c[m.kind] ?? 0) + 1;
-  return KINDS.map((k) => (c[k] ? `${c[k]}${FLAG[k]}` : "")).filter(Boolean).join(" ");
+  return KINDS.map((k) => (c[k] ? `${c[k]}${FLAG[k] ?? k[0]}` : "")).filter(Boolean).join(" ");
 }
 const PRIO: Record<string, number> = { high: 0, medium: 1, med: 1, low: 2, "": 3 };
 

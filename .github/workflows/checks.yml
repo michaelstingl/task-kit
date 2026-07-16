@@ -1,0 +1,22 @@
+# Gates the tooling itself: board.ts / new-kit.ts / watch.ts / lint.ts must pass
+# their tests on every PR and push. This is the write-point that IS a git event —
+# for the tool repo. (Consumer kits live in gitignored scratch with no commit
+# event; their enforcement is a separate, still-open seam — see the fleet-model.)
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: bun test (board + new-kit + watch + lint)
+        run: bun test
