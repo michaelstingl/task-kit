@@ -31,7 +31,7 @@ bun board.ts            # table + open markers (grouped by kit, priority-sorted)
 bun board.ts --brief    # table only (suppress the marker listing)
 ```
 
-It reads the status order and field rules from `kit.schema.json` (one source) and warns on drift: status off-enum, `kit` slug ≠ folder name, `kit_version` skew (a kit built under an older convention), malformed dates. It is an **optional snapshot** — the markers and per-kit `## Changelog` inside each `SCOPE.md` remain the source of truth. Run `bun test` to exercise `board.ts` and `new-kit.ts`.
+It reads the status order and field rules from `kit.schema.json` (one source) and warns on drift: status off-enum, `kit` slug ≠ folder name, malformed dates. It is an **optional snapshot** — the markers and per-kit `## Changelog` inside each `SCOPE.md` remain the source of truth. Run `bun test` to exercise `board.ts` and `new-kit.ts`.
 
 **Lint:** `bun lint.ts` validates every kit's markers against the closed sets in `kit.schema.json` (`marker.kinds`, `marker.status.terminal|open`) plus the structural rules — unique id per kit, `DEBT` carries `trigger=`. It **exits non-zero** on any violation (invented status `dead`✗, invented kind `FINDING`✗, a duplicate id). Wire it into a pre-commit hook / CI so bad markers are rejected at a write point, keeping `board.ts` a pure reporter. **Honest limit:** kits in gitignored scratch have no commit event, so there `lint.ts` is a check you must RUN, not yet a gate that fires on write — that enforcement point is still open (a command nobody invokes catches nothing). `bun lint.ts <kitsDir>` or `--kit <path>` scope it.
 
