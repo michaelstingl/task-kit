@@ -117,7 +117,7 @@ test("lint: a clean kit passes (exit 0), incl. extended valid statuses", () => {
     `<!-- TODO(id=T1): open -->\n<!-- DECISION(id=D1, status=superseded): replaced -->\n<!-- QUESTION(id=Q1, status=answered): resolved -->\n<!-- TODO(id=T2, status=deferred): later -->\n<!-- DEBT(id=B1, trigger=before v2): shortcut -->\n<!-- NOTE(id=N1): evidence -->`);
   const r = run(lint, [kits], dir);
   expect(r.code).toBe(0);
-  expect(r.out).toContain("markers clean");
+  expect(r.out).toContain("markers valid");
 });
 
 test("lint: unknown KIND is rejected", () => {

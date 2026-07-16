@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
-// lint.ts — validate the inline markers in kits AT WRITE TIME, so sprawl and
-// collisions cannot accumulate for the board to warn about later.
+// lint.ts — validate the inline markers in kits against the closed sets, so sprawl
+// and collisions get REJECTED rather than warned about later. It is the ENFORCEMENT;
+// where it runs is the caller's wiring (see below) — a command is not a gate until
+// something invokes it at a write point.
 //
 //   bun lint.ts                 # lint every kit under _work/kits (or ./kits)
 //   bun lint.ts <kitsDir>       # lint every kit under <kitsDir>
@@ -9,7 +11,9 @@
 // Exits non-zero if any marker violates the CLOSED SETS in kit.schema.json
 // (`marker.kinds`, `marker.status.terminal|open`) or the structural rules
 // (unique id per kit, DEBT carries trigger=). Wire it into a pre-commit hook or
-// a check; it is the "reject at write" that returns board.ts to a pure reporter.
+// a CI check WHERE KITS ARE COMMITTED. HONEST LIMIT: kits in gitignored scratch
+// (_work/kits) have no commit event, so for those this is still a command someone must
+// RUN, not a gate that fires on write — see the fleet-model kit for that open seam.
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -77,7 +81,7 @@ function lintKit(kitDir: string, kitName: string) {
     }
   }
   for (const [id, files] of ids) {
-    if (files.length > 1) violations.push({ kit: kitName, file: [...new Set(files)].join(", "), msg: `duplicate id ${id} on ${files.length} open markers — the board sums them silently` });
+    if (files.length > 1) violations.push({ kit: kitName, file: [...new Set(files)].join(", "), msg: `duplicate id ${id} on ${files.length} open markers — the board sums them silently; renumber one to a free id (or set the resolved one status=done)` });
   }
 }
 
@@ -99,7 +103,7 @@ if (kitFlag >= 0) {
 
 // ---- report ----
 if (!violations.length) {
-  console.log("✓ markers clean — kinds, statuses, ids, DEBT triggers all valid");
+  console.log("✓ markers valid — kinds, statuses, unique ids, DEBT triggers all pass (this checks marker HYGIENE, not whether each marker's claim is true)");
   process.exit(0);
 }
 const byKit: Record<string, Violation[]> = {};
@@ -108,5 +112,5 @@ for (const [kit, vs] of Object.entries(byKit)) {
   console.log(`\n✗ ${kit}`);
   for (const v of vs) console.log(`    ${v.msg}  ·  ${v.file}`);
 }
-console.log(`\n${violations.length} marker violation(s). Fix at the source — this is the write-time gate, not a board warning.`);
+console.log(`\n${violations.length} marker violation(s). Fix at the source. (This is the validator; wire it into a pre-commit/CI to make it a gate — a command that nobody invokes catches nothing.)`);
 process.exit(1);
