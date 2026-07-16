@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com); versioning follows SemVe
 README "Versioning" section). The canonical version number lives only in `kit.schema.json`
 (`version`); this file is the only place release notes live.
 
+## 0.9.0
+
+### Added
+- **`lint.ts` — a write-time marker validator**, and the closed sets it enforces, now declared in `kit.schema.json` under a new top-level `marker` key (`kinds`, `countedKinds`, `status.terminal`, `status.open`) as the single source. `bun lint.ts` walks every kit and **exits non-zero** on: an unknown marker **kind** (only `TODO/FIXME/DECISION/QUESTION/DEBT/NOTE` — invented `FINDING/TRIGGER/DANGER` are rejected, fold them into `NOTE`), an unknown **status** (with a suggested canonical, e.g. `dead`→`wontfix`, `resolved`→`done`), a **`DEBT` without `trigger=`**, and a **duplicate id** on two open markers in one kit. It is the "reject at write" that returns `board.ts` to a pure reporter — sprawl and collisions cannot accumulate for the board to warn about later. Wire it into a pre-commit hook / CI.
+- **`board.ts` now hides the full terminal-status set** (read from `marker.status.terminal`): `done`, `wontfix`, plus `answered` (a resolved QUESTION), `superseded`/`decided` (a settled DECISION) — previously only `done`/`wontfix`, so a `superseded` decision leaked onto the board as open. Single source shared with `lint.ts`.
+- **MINOR** (additive): old kits stay valid; an older `board.ts` still works. Existing kits that used invented statuses/kinds will now be flagged by `lint.ts` — that surfacing is the point (migrate them).
+
 ## 0.8.0
 
 ### Added

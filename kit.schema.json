@@ -1,8 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/michaelstingl/task-kit/kit.schema.json",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "title": "Generic kit frontmatter",
+  "marker": {
+    "description": "The inline HTML-comment markers board.ts aggregates and lint.ts validates. These are CLOSED SETS: lint.ts rejects, at write time, any kind or status outside them — so sprawl (invented statuses like superseded/dead, invented kinds like FINDING/TRIGGER) cannot accumulate for the board to warn about later. The board hides `status.terminal`, treats absent + `status.open` as open, and never counts `NOTE`.",
+    "kinds": ["TODO", "FIXME", "DECISION", "QUESTION", "DEBT", "NOTE"],
+    "countedKinds": ["TODO", "FIXME", "DECISION", "QUESTION", "DEBT"],
+    "status": {
+      "terminal": ["done", "wontfix", "answered", "superseded", "decided"],
+      "open": ["deferred", "parked", "blocked", "partial"]
+    }
+  },
   "description": "YAML frontmatter at the top of each kit's lead file (SCOPE.md). One record per kit. Scan kits/*/SCOPE.md to build a board. Lenient/generic: domain-specific methods (e.g. contribution-method) may require additional fields via their own stricter schema.",
   "type": "object",
   "required": ["kit", "title", "status", "created", "updated"],

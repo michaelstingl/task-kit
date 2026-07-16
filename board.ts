@@ -101,9 +101,11 @@ function parseAttrs(s: string): Record<string, string> {
   }
   return a;
 }
+// terminal marker statuses come from the schema (single source, shared with lint.ts):
+// done/wontfix (work) + answered (a QUESTION) + superseded (a DECISION replaced) + decided.
+const MARKER_TERMINAL = new Set<string>((schema.marker?.status?.terminal ?? ["done", "wontfix"]).map((s: string) => s.toLowerCase()));
 function isOpen(m: Marker): boolean {
-  const s = (m.attrs.status ?? "").toLowerCase();
-  return s !== "done" && s !== "wontfix";
+  return !MARKER_TERMINAL.has((m.attrs.status ?? "").toLowerCase());
 }
 function scanMarkers(dir: string): Marker[] {
   const out: Marker[] = [];
