@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Pre-commit secret / internal-ref guard. Scans STAGED changes; blocks the commit on a match.
+# Bypass (rarely, deliberately): git commit --no-verify
+#
+# Two concerns, two mechanisms — deliberately not one hand-maintained regex list:
+#   1. GENERIC provider secrets  -> betterleaks (maintained upstream ruleset). We do NOT
+#      hand-maintain token regexes: a hand-copied subset silently rots (e.g. it misses
+#      GitHub's 2021 `ghp_` format change), and pinning the betterleaks version pins the
+#      patterns. betterleaks = the maintained successor to gitleaks (which went
+#      feature-complete / security-patches-only in Feb 2026); install: brew install betterleaks.
+#   2. PROJECT internal/stealth names -> the `.git-deny-patterns` denylist (zero-dep grep).
+#      No upstream scanner can ever know your internal names, so THIS list stays local and
+#      hand-maintained. One extended-regex per line; lines starting with # are ignored.
+#
+# If betterleaks is not installed, generic-secret scanning is skipped with a LOUD warning
+# (not a silent pass) — the CI leak-scan is the always-on net, and blocking every commit on a
+# missing optional tool would just get the hook disabled. The denylist always runs (zero-dep).
+#
+# Install: copy to .git/hooks/pre-commit (chmod +x). bootstrap.sh does this for you.
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+# --deny-only: skip the betterleaks generic-secret scan, check the project denylist only
+# (e.g. when betterleaks already runs as a separate lefthook/CI step).
+DENY_ONLY=0
+[ "${1:-}" = "--deny-only" ] && DENY_ONLY=1
+
+hit=0
+
+# --- 1. generic provider secrets via betterleaks (maintained ruleset) ---
+if [ "$DENY_ONLY" != 1 ]; then
+  if command -v betterleaks >/dev/null 2>&1; then
+    if ! betterleaks git --staged --redact --exit-code 1 >/dev/null 2>&1; then
+      echo "✗ pre-commit: betterleaks found a secret in the staged changes:"
+      betterleaks git --staged --redact 2>&1 \
+        | grep -iE 'finding|secret|rule|file:|line:|commit:' | head -12 | sed 's/^/      /'
+      hit=1
+    fi
+  else
+    echo "⚠ pre-commit: betterleaks is not installed — generic-secret scanning is OFF for this commit."
+    echo "  (The CI leak-scan still catches it; install locally for pre-push safety:)"
+    echo "    brew install betterleaks     # github.com/betterleaks/betterleaks"
+  fi
+fi
+
+# --- 2. project internal/stealth denylist (zero-dep, always) ---
+EXTRA=()
+load_deny() {
+  [ -f "$1" ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] && [ "${line#\#}" = "$line" ] && EXTRA+=("$line")
+  done < "$1"
+}
+load_deny "$ROOT/.git-deny-patterns"
+[ -n "${GIT_DENY_PATTERNS:-}" ] && load_deny "$GIT_DENY_PATTERNS"
+
+if [ "${#EXTRA[@]}" -gt 0 ]; then
+  # staged added lines (exclude this hook + the denylist so the scanner doesn't flag its own patterns)
+  staged="$(git diff --cached --no-color -U0 --diff-filter=ACM -- . ':(exclude)*pre-commit' ':(exclude)*.git-deny-patterns*' \
+            | grep -E '^\+' | grep -vE '^\+\+\+' || true)"
+  if [ -n "$staged" ]; then
+    for re in "${EXTRA[@]}"; do
+      [ -z "$re" ] && continue
+      if printf '%s\n' "$staged" | grep -niE "$re" >/dev/null 2>&1; then
+        echo "✗ pre-commit: internal/stealth ref  /$re/"
+        printf '%s\n' "$staged" | grep -niE "$re" | head -3 | sed 's/^/      /'
+        hit=1
+      fi
+    done
+  fi
+fi
+
+if [ "$hit" -ne 0 ]; then
+  echo ""
+  echo "  Commit blocked. Remove it, or bypass deliberately: git commit --no-verify"
+  exit 1
+fi
+exit 0

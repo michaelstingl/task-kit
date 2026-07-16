@@ -1,0 +1,25 @@
+# Secret leak scan — the always-on net that does not depend on a local hook being installed.
+# Kept as its own workflow (separate from other gates) so a security failure is never
+# entangled with, or masked by, an unrelated check.
+name: leak-scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  betterleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan git history + tree for secrets (betterleaks)
+        run: >
+          docker run --rm -v "${{ github.workspace }}:/repo"
+          ghcr.io/betterleaks/betterleaks:v1.6.1
+          git /repo --redact --exit-code 1
