@@ -6,11 +6,12 @@ area: [<tag>]           # optional: topic tags for filtering (board.ts)
 links: [<org/repo#n>, <url>]   # optional: related issues / PRs / sources
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
-repos:                  # optional — for code-contribution kits; one entry per repo. Delete for non-code kits.
-  - repo: <org>/<repo>
+repos:
+  # code-contribution kits: one entry per repo+branch (delete the block for a non-code kit).
+  # branch = the ownership marker: with one = you opened it, without = a repo you merely touch.
+  - repo: owner/name    # replace with the real owner/name
     branch: fix/<slug>
-    issue:              # filled when the issue is posted
-    pr:                 # filled when the PR is opened
+    refs: []            # issues AND PRs as they are posted, e.g. [#12, #14] or [org/repo#34]; bare #n = this entry's repo. IN-FLIGHT ONLY — drop an entry once its work lands (watch.ts reconciles status: against these).
 ---
 
 # Scope: <problem or topic>
