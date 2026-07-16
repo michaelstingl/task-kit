@@ -19,7 +19,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Scan git history + tree for secrets (betterleaks)
+        # The container runs as a different uid than the mounted checkout, so git would
+        # refuse it as "dubious ownership". Inject safe.directory via GIT_CONFIG_* env
+        # (no shell / entrypoint override needed — the image entrypoint is `betterleaks`).
         run: >
-          docker run --rm -v "${{ github.workspace }}:/repo"
+          docker run --rm
+          -e GIT_CONFIG_COUNT=1
+          -e GIT_CONFIG_KEY_0=safe.directory
+          -e GIT_CONFIG_VALUE_0=/repo
+          -v "${{ github.workspace }}:/repo"
           ghcr.io/betterleaks/betterleaks:v1.6.1
           git /repo --redact --exit-code 1
