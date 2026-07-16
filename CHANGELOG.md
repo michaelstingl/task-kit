@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com); versioning follows SemVe
 README "Versioning" section). The canonical version number lives only in `kit.schema.json`
 (`version`); this file is the only place release notes live.
 
+## 0.9.1
+
+### Changed
+- **`board.ts` no longer warns on `kit_version` skew.** The field records the `MAJOR.MINOR` a kit was built under so it stays *readable* across additive schema bumps — that is its documented purpose, not drift. After the 0.9.0 MINOR bump the warning fired on **every** kit still stamped `0.8`, and a warning that flags everything trains readers to ignore the board's real findings (duplicate ids, off-enum status). Actual conformance is now `lint.ts`'s job; the board returns to a pure reporter. The `kit_version` field and its stamping by `new-kit.ts` are unchanged — nothing reads it behaviorally anymore.
+
 ## 0.9.0
 
 ### Added

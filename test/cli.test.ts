@@ -71,9 +71,9 @@ test("board warns on slug != folder", () => {
   expect(run(board, [kits], dir).out).toMatch(/slug.*folder/);
 });
 
-test("board warns when kit_version differs from the schema (KMS-T2)", () => {
+test("board does NOT warn on kit_version skew — the stamp is provenance, not drift", () => {
   writeKit(kits, "old", OK_FM("\nkit_version: 0.1").replace("%KIT%", "old"));
-  expect(run(board, [kits], dir).out).toMatch(/kit_version 0\.1/);
+  expect(run(board, [kits], dir).out).not.toMatch(/kit_version 0\.1/);
 });
 
 test("board hides terminal status by default, shows with --all", () => {

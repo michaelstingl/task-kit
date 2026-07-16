@@ -31,7 +31,6 @@ import { parseRepos } from "./watch.ts";
 const schema = JSON.parse(readFileSync(join(import.meta.dir, "kit.schema.json"), "utf8"));
 const props: Record<string, any> = schema.properties ?? {};
 const required: string[] = schema.required ?? [];
-const SCHEMA_MM = String(schema.version ?? "").split(".").slice(0, 2).join("."); // current MAJOR.MINOR
 
 // ---- args ----
 const argv = process.argv.slice(2);
@@ -139,7 +138,11 @@ function validate(fm: FM): string[] {
   for (const d of ["created", "updated"]) if (fm[d] && !DATE_RE.test(fm[d])) errs.push(`${d} not a date`);
   if (props.area && fm.area && !Array.isArray(fm.area)) errs.push(`area not a list`);
   if (props.status?.enum && fm.status && !props.status.enum.includes(fm.status)) errs.push(`status "${fm.status}" not in schema enum`);
-  if (fm.kit_version && SCHEMA_MM && String(fm.kit_version) !== SCHEMA_MM) errs.push(`kit_version ${fm.kit_version} ≠ schema ${SCHEMA_MM}`);
+  // NOTE: no kit_version-vs-schema warning. The field records the MAJOR.MINOR a kit was built
+  // under so it stays READABLE across additive schema bumps — that is its purpose, not drift.
+  // Warning on every skew fired on all kits after a MINOR bump and trained readers to ignore the
+  // board's real findings (dup ids, off-enum status). Actual conformance is lint.ts's job now;
+  // the board is a pure reporter.
   return errs;
 }
 
