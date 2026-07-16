@@ -1,0 +1,3 @@
+
+# real denylist = internal names to hide; never commit (only .example is shared)
+.git-deny-patterns

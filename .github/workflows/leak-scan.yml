@@ -1,0 +1,32 @@
+# Secret leak scan — the always-on net that does not depend on a local hook being installed.
+# Kept as its own workflow (separate from other gates) so a security failure is never
+# entangled with, or masked by, an unrelated check.
+name: leak-scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  betterleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan git history + tree for secrets (betterleaks)
+        # The container runs as a different uid than the mounted checkout, so git would
+        # refuse it as "dubious ownership". Inject safe.directory via GIT_CONFIG_* env
+        # (no shell / entrypoint override needed — the image entrypoint is `betterleaks`).
+        run: >
+          docker run --rm
+          -e GIT_CONFIG_COUNT=1
+          -e GIT_CONFIG_KEY_0=safe.directory
+          -e GIT_CONFIG_VALUE_0=/repo
+          -v "${{ github.workspace }}:/repo"
+          ghcr.io/betterleaks/betterleaks:v1.6.1
+          git /repo --redact --exit-code 1

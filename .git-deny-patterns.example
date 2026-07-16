@@ -1,0 +1,15 @@
+# Project-specific deny patterns for the pre-commit secret/internal-ref guard.
+#
+# ⚠️ NEVER COMMIT the filled-in `.git-deny-patterns` — it lists the internal names you are
+#    hiding, so committing it would publish exactly what you want to keep out. It is gitignored.
+#    Only THIS .example (placeholders, no real names) is shared. For a team, keep the real list
+#    in a private/synced folder and point the hook at it: export GIT_DENY_PATTERNS=/path/to/list
+#
+# Copy to `.git-deny-patterns` (bootstrap.sh does this) and add one extended-regex per line.
+# The guard blocks a commit if a staged added line matches any of these.
+# Use for things the built-in secret patterns don't cover — internal names, hosts, clients.
+#
+# Examples (uncomment + adapt):
+# AcmeCorp
+# internal\.example\.com
+# (staging|prod)-secret-host
